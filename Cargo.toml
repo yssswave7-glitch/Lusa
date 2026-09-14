@@ -1,0 +1,32 @@
+[package]
+name = "lusa"
+version = "0.1.0"
+edition = "2024"
+license = "MPL-2.0"
+description = "Roblox-focused Luau compatibility runner built on Lune"
+repository = "https://github.com/yssswave7-glitch/Lusa"
+readme = "README.md"
+keywords = ["luau", "roblox", "runtime", "cli"]
+categories = ["command-line-interface", "development-tools"]
+publish = false
+
+[[bin]]
+name = "lusa"
+path = "src/main.rs"
+
+[dependencies]
+async-io = "2.4"
+lune = { version = "=0.10.5", default-features = false, features = ["std"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"
