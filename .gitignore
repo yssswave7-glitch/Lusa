@@ -1,0 +1,9 @@
+/target/
+.DS_Store
+*.pdb
+*.ilk
+*.exe~
+.vscode/
+.idea/
+__pycache__/
+*.pyc
