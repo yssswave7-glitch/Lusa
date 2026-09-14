@@ -75,12 +75,7 @@ fn env_truthy(name: &str) -> bool {
 fn is_luau_compat_flag(arg: &OsStr) -> bool {
     matches!(
         arg.to_str(),
-        Some("-O0")
-            | Some("-O1")
-            | Some("-O2")
-            | Some("-g0")
-            | Some("-g1")
-            | Some("-g2")
+        Some("-O0") | Some("-O1") | Some("-O2") | Some("-g0") | Some("-g1") | Some("-g2")
     )
 }
 
