@@ -1,0 +1,75 @@
+name: Lusa CI / x64 builds
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Validate source
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            label: Linux x64
+            target: x86_64-unknown-linux-gnu
+            artifact: lusa-linux-x86_64
+            binary: target/x86_64-unknown-linux-gnu/release/lusa
+            release_name: lusa-linux-x86_64
+          - os: windows-2022
+            label: Windows x64
+            target: x86_64-pc-windows-msvc
+            artifact: lusa-windows-x86_64
+            binary: target/x86_64-pc-windows-msvc/release/lusa.exe
+            release_name: lusa-windows-x86_64.exe
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Run compatibility suite
+        shell: bash
+        run: python scripts/test-lusa.py "${{ matrix.binary }}"
+
+      - name: Stage release filename
+        shell: bash
+        run: cp "${{ matrix.binary }}" "${{ matrix.release_name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.release_name }}
+          if-no-files-found: error
+
+      - name: Publish tagged binary
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.release_name }}
