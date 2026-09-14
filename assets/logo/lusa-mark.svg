@@ -1,19 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Lusa mark</title>
+  <desc id="desc">Lusa purple-to-blue crescent logo mark.</desc>
   <defs>
-    <linearGradient id="g" x1="80" y1="60" x2="430" y2="450" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#9B5CFF"/>
-      <stop offset="0.52" stop-color="#6E66FF"/>
-      <stop offset="1" stop-color="#2FB8FF"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a92cff"/>
+      <stop offset="0.48" stop-color="#7656ff"/>
+      <stop offset="1" stop-color="#148dff"/>
     </linearGradient>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" fill="none" stroke="#ffffff" stroke-opacity="0.045" stroke-width="7"/>
+    </pattern>
+    <mask id="crescent">
+      <rect width="512" height="512" fill="black"/>
+      <circle cx="290" cy="245" r="112" fill="white"/>
+      <circle cx="237" cy="190" r="108" fill="black"/>
+    </mask>
   </defs>
-  <rect width="512" height="512" rx="110" fill="#11131A"/>
-  <!-- Lune-inspired crescent / orbital mark, redrawn for Lusa -->
-  <path fill="url(#g)" d="M334 78c-87 16-150 91-150 180 0 101 81 182 182 182 24 0 47-5 68-13-33 27-75 43-121 43-111 0-201-90-201-201 0-97 69-178 160-197 22-5 43-3 62 6z"/>
-  <path fill="#11131A" d="M315 129c-59 25-100 84-100 152 0 90 73 163 163 163 17 0 33-2 49-7-26 15-57 24-90 24-100 0-181-81-181-181 0-78 49-145 118-170 15-6 29-4 41 19z"/>
-  <!-- stylized L stroke nested in crescent -->
-  <path fill="url(#g)" d="M252 188c0-14 12-26 26-26s26 12 26 26v122h90c14 0 26 12 26 26s-12 26-26 26H278c-14 0-26-12-26-26V188z"/>
-  <!-- moon/star motifs -->
-  <path fill="url(#g)" d="M390 104c10 0 18-8 18-18 0 10 8 18 18 18-10 0-18 8-18 18 0-10-8-18-18-18z"/>
-  <circle cx="426" cy="154" r="11" fill="url(#g)"/>
-  <circle cx="387" cy="176" r="6.5" fill="url(#g)"/>
+  <rect x="32" y="32" width="448" height="448" rx="48" fill="url(#bg)"/>
+  <rect x="32" y="32" width="448" height="448" rx="48" fill="url(#grid)"/>
+  <rect x="150" y="105" width="280" height="280" fill="#fff" mask="url(#crescent)"/>
 </svg>
