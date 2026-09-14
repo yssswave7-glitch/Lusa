@@ -32,17 +32,17 @@ async fn main_async() -> ExitCode {
         return ExitCode::from(2);
     };
 
-    if first == OsString::from("--version") || first == OsString::from("-V") {
+    if first == "--version" || first == "-V" {
         println!("lusa {VERSION} (Lune 0.10.5 compatibility runtime)");
         return ExitCode::SUCCESS;
     }
 
-    if first == OsString::from("--help") || first == OsString::from("-h") {
+    if first == "--help" || first == "-h" {
         usage();
         return ExitCode::SUCCESS;
     }
 
-    if first == OsString::from("run") {
+    if first == "run" {
         let Some(script) = args.next() else {
             usage();
             return ExitCode::from(2);
