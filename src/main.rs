@@ -11,6 +11,7 @@ use std::{
 };
 
 use lune::Runtime;
+use mlua::{Function as LuaFunction, Value as LuaValue};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const ROBLOX_API_REGISTRY_CHUNKS: &[&str] = &[
@@ -28,6 +29,7 @@ const ROBLOX_API_REGISTRY_CHUNKS: &[&str] = &[
     include_str!("roblox_api_registry_11.luau"),
 ];
 const ROBLOX_BOOTSTRAP: &str = include_str!("roblox_bootstrap.luau");
+const ROBLOX_METATABLE_LOCK: &str = "The metatable is locked";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RuntimeMode {
@@ -205,6 +207,14 @@ async fn run(cli: Cli) -> ExitCode {
     };
 
     if cli.mode == RuntimeMode::Roblox {
+        runtime = match install_roblox_fidelity_shims(runtime) {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                eprintln!("{error}");
+                return ExitCode::FAILURE;
+            }
+        };
+
         for (index, chunk) in ROBLOX_API_REGISTRY_CHUNKS.iter().enumerate() {
             let chunk_name = format!("lusa/roblox_api_registry_{index:02}");
             match runtime.run_custom(chunk_name, chunk).await {
@@ -263,4 +273,30 @@ async fn run(cli: Cli) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn install_roblox_fidelity_shims(runtime: Runtime) -> lune::RuntimeResult<Runtime> {
+    runtime.with_lib("@lusa/roblox-fidelity", |lua| {
+        let globals = lua.globals();
+        let original_getmetatable = globals.get::<LuaFunction>("getmetatable")?;
+        let typeof_function = globals.get::<LuaFunction>("typeof")?;
+
+        // mlua protects Rust userdata metatables with boolean false. Roblox
+        // protects Instance metatables with the public sentinel string below.
+        // Keep this as a native Rust callback so debug.info(..., "s") remains
+        // "[C]", while leaving non-Instance userdata/table behavior unchanged.
+        let roblox_getmetatable = lua.create_function(move |lua, value: LuaValue| {
+            let result = original_getmetatable.call::<LuaValue>(value.clone())?;
+            if matches!(result, LuaValue::Boolean(false)) {
+                let value_type = typeof_function.call::<String>(value)?;
+                if value_type == "Instance" {
+                    return Ok(LuaValue::String(lua.create_string(ROBLOX_METATABLE_LOCK)?));
+                }
+            }
+            Ok(result)
+        })?;
+
+        globals.set("getmetatable", roblox_getmetatable)?;
+        Ok(LuaValue::Table(lua.create_table()?))
+    })
 }

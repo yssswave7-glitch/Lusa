@@ -5,8 +5,22 @@ assert(type(workspace) == "userdata", "workspace must be a Workspace-like Instan
 assert(type(Instance) == "table", "Instance constructor must be exposed")
 assert(type(task) == "table", "task must be exposed")
 
+assert(getmetatable(game) == "The metatable is locked")
+assert(getmetatable(workspace) == "The metatable is locked")
+assert(debug.info(getmetatable, "s") == "[C]")
+
+local protectedTable = setmetatable({}, { __metatable = false })
+assert(getmetatable(protectedTable) == false, "non-Instance metatable locks must be preserved")
+
 assert(game:IsLoaded() == true)
 assert(workspace == game:GetService("Workspace"))
+
+local players = game:GetService("Players")
+assert(players.PlayerAdded == players.PlayerAdded, "signals must have stable identity")
+local connection = players.PlayerAdded:Connect(function() end)
+assert(connection.Connected == true)
+connection:Disconnect()
+assert(connection.Connected == false)
 
 local t1 = workspace:GetServerTimeNow()
 task.wait(0.05)

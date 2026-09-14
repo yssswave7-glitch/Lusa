@@ -50,6 +50,10 @@ def run_file(rel: str, expect_success: bool, *extra: str) -> str:
 
 checks = [
     ("tests/compat/roblox_core.luau", "LUSA_ROBLOX_CORE_PASS"),
+    (
+        "tests/compat/protected_instance_pattern.luau",
+        "LUSA_PROTECTED_INSTANCE_PATTERN_PASS",
+    ),
     ("tests/compat/native_semantics.luau", "LUSA_NATIVE_SEMANTICS_PASS"),
     ("tests/compat/tooling_runtime.luau", "LUSA_TOOLING_RUNTIME_PASS"),
     ("tests/compat/executor_boundary.luau", "LUSA_EXECUTOR_BOUNDARY_PASS"),

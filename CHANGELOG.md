@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.2.1
+
+Roblox Instance fidelity patch.
+
+- Match Roblox's protected Instance metatable result: `getmetatable(instance)` now returns `"The metatable is locked"` instead of mlua's generic `false` sentinel.
+- Keep the compatibility callback native (`debug.info(getmetatable, "s") == "[C]`) and preserve non-Instance metatable behavior.
+- Add stable offline `Players.PlayerAdded` and `Players.PlayerRemoving` signal surfaces with `Connect`, `Once`, and disconnectable connection handles.
+- Add regression coverage for protected Instance metatables, native provenance, non-Instance metatable locks, and Players signal identity/connections.
+- Commit the Cargo lockfile so release dependency resolution is reproducible.
+
 ## v0.2.0
 
 Tooling-focused runtime release.

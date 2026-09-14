@@ -8,7 +8,7 @@ Lusa is an offline Luau/Roblox compatibility runtime. Its goal is to make Roblox
 
 **Roblox datatypes and object model:** Lusa exposes the Roblox datatypes and `Instance` model implemented by Lune. A generated API registry supplements Lune's bundled reflection database with current class and service names from a Roblox API dump. Registered custom classes inherit from their declared superclass when possible.
 
-**Offline shims:** Lusa implements selected engine-facing behavior when a deterministic standalone approximation is useful, such as `DataModel:IsLoaded()` and an offline wall-clock implementation of `Workspace:GetServerTimeNow()`.
+**Offline shims:** Lusa implements selected engine-facing behavior when a deterministic standalone approximation is useful, such as `DataModel:IsLoaded()`, an offline wall-clock implementation of `Workspace:GetServerTimeNow()`, Roblox's protected Instance metatable sentinel, and stable `Players.PlayerAdded` / `Players.PlayerRemoving` signal handles. Offline player signals expose connection behavior but do not invent live players or fire without a live engine.
 
 **Live-engine behavior:** replication, physics, rendering, security contexts, network ownership, live service state, authoritative server time, and other behaviors that require the Roblox engine are not simulated as if they were real.
 

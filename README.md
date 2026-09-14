@@ -32,7 +32,7 @@ That makes Lusa easy to substitute into software that currently shells out to `l
 
 ## Roblox compatibility
 
-In the default Roblox mode, Lusa bootstraps a `DataModel` and exposes common Roblox globals such as `game`, `workspace`, `Instance`, `Enum`, Roblox datatypes, `task`, and `DateTime`. It includes offline shims such as `Workspace:GetServerTimeNow()` and `DataModel:IsLoaded()`.
+In the default Roblox mode, Lusa bootstraps a `DataModel` and exposes common Roblox globals such as `game`, `workspace`, `Instance`, `Enum`, Roblox datatypes, `task`, and `DateTime`. It includes offline shims such as `Workspace:GetServerTimeNow()`, `DataModel:IsLoaded()`, Roblox-compatible protected Instance metatables, and stable Players service signal handles.
 
 Lusa also ships a generated API registry based on a current Roblox API dump. The v0.2 registry covers **830 Instance-descendant classes**, including **296 services**, so current class/service names can still be created or resolved when they are newer than Lune's bundled reflection database. The registry supplies class/service shape and inheritance; it does not pretend that a standalone process can implement every live-engine method or property.
 
