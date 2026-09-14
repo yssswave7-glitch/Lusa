@@ -12,23 +12,21 @@ local roblox = require("@lune/roblox")
 local taskLib = require("@lune/task")
 local DateTimeLib = require("@lune/datetime")
 
--- Some services may not exist in the bundled reflection database. Lune 0.10.5
--- supports registering those explicitly so DataModel:GetService can create them.
-pcall(function()
-    roblox.registerService("SlimAnimationReplicationService")
-end)
-
 -- Roblox exposes Workspace:GetServerTimeNow() as a number in seconds. Outside
 -- a live server there is no authoritative server clock, so Lusa uses wall-clock
 -- time. The observable type/forward-progress contract is preserved, but the
 -- value is not synchronized with a Roblox server.
-roblox.implementMethod("Workspace", "GetServerTimeNow", function(_workspace)
-    return DateTimeLib.now().unixTimestampMillis / 1000
+pcall(function()
+    roblox.implementMethod("Workspace", "GetServerTimeNow", function(_workspace)
+        return DateTimeLib.now().unixTimestampMillis / 1000
+    end)
 end)
 
 -- Common DataModel behavior useful to ordinary scripts.
-roblox.implementMethod("DataModel", "IsLoaded", function(_game)
-    return true
+pcall(function()
+    roblox.implementMethod("DataModel", "IsLoaded", function(_game)
+        return true
+    end)
 end)
 
 local game = roblox.Instance.new("DataModel")
@@ -39,7 +37,6 @@ globals.game = game
 globals.workspace = workspace
 globals.task = taskLib
 globals.DateTime = DateTimeLib
-globals._VERSION = "Lusa 0.1.0"
 
 -- Export Roblox datatypes / constructors as globals (Instance, Enum, Vector3,
 -- CFrame, Color3, UDim2, etc.) when supplied by @lune/roblox.

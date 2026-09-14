@@ -1,9 +1,9 @@
 [package]
 name = "lusa"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MPL-2.0"
-description = "Roblox-focused Luau compatibility runner built on Lune"
+description = "Roblox-focused Luau compatibility runtime for tooling and offline analysis"
 repository = "https://github.com/yssswave7-glitch/Lusa"
 readme = "README.md"
 keywords = ["luau", "roblox", "runtime", "cli"]
@@ -14,9 +14,25 @@ publish = false
 name = "lusa"
 path = "src/main.rs"
 
+[features]
+default = []
+host-io = [
+    "lune/std-fs",
+    "lune/std-net",
+    "lune/std-process",
+    "lune/std-regex",
+]
+
 [dependencies]
 async-io = "2.4"
-lune = { version = "=0.10.5", default-features = false, features = ["std"] }
+lune = { version = "=0.10.5", default-features = false, features = [
+    "std-datetime",
+    "std-luau",
+    "std-roblox",
+    "std-serde",
+    "std-stdio",
+    "std-task",
+] }
 
 [profile.release]
 opt-level = "z"
