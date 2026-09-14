@@ -112,18 +112,20 @@ env_raw_output = run_args(
 if "LUSA_ENV_RAW_PASS" not in env_raw_output:
     raise SystemExit("LUSA_RAW environment compatibility check failed")
 
-# Released binaries intentionally omit direct host fs/net/process modules.
-safe_output = run_args(
+# Official binaries expose Lune's standard host libraries for tooling
+# compatibility. Lusa documents this explicitly instead of presenting it as a
+# security boundary.
+host_output = run_args(
     ["--raw", "-"],
     True,
     input_text=(
-        'local ok = pcall(require, "@lune/fs")\n'
-        'assert(not ok, "@lune/fs should not be available in the default build")\n'
-        'print("LUSA_SAFE_MODULES_PASS")\n'
+        'local ok, fs = pcall(require, "@lune/fs")\n'
+        'assert(ok and fs ~= nil, "@lune/fs should be available in release builds")\n'
+        'print("LUSA_HOST_IO_PASS")\n'
     ),
 )
-if "LUSA_SAFE_MODULES_PASS" not in safe_output:
-    raise SystemExit("safe module boundary check failed")
+if "LUSA_HOST_IO_PASS" not in host_output:
+    raise SystemExit("host library availability check failed")
 
 version = subprocess.run(
     [str(BIN), "--version"],
@@ -155,11 +157,16 @@ required = {
     "raw_mode": True,
     "roblox_bootstrap": True,
     "api_registry": True,
-    "host_io": False,
+    "host_io": True,
+    "sandbox": "external_required",
 }
 for key, expected in required.items():
     if capabilities.get(key) != expected:
         raise SystemExit(f"capability {key!r} expected {expected!r}, got {capabilities.get(key)!r}")
+
+host_modules = set(capabilities.get("host_io_modules", []))
+if not {"fs", "net", "process", "regex"}.issubset(host_modules):
+    raise SystemExit(f"--capabilities host_io_modules incomplete: {sorted(host_modules)!r}")
 
 if "-O2" not in capabilities.get("luau_cli_flags", []):
     raise SystemExit("--capabilities is missing -O2 compatibility")

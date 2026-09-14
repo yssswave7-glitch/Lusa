@@ -28,11 +28,11 @@ If the parent program controls the child command and only appends a script path,
 LUSA_RAW=1 lusa harness.luau
 ```
 
-Raw mode keeps the Luau/Lune runtime and the standard libraries needed by analysis harnesses, including `@lune/task`, but skips Lusa's `game` / `workspace` / Roblox API registry bootstrap.
+Raw mode keeps the Luau/Lune runtime and its standard libraries, including `@lune/task`, but skips Lusa's `game` / `workspace` / Roblox API registry bootstrap.
 
 ## `env.py`-style trace harnesses
 
-For the trace-driven Python harness that accepts `--lune` / `--luau`, point it at the Lusa binary and set raw mode in the child environment:
+For a trace-driven Python harness that accepts `--lune` / `--luau`, point it at the Lusa binary and set raw mode in the child environment:
 
 ```bash
 LUSA_RAW=1 python env.py --lune /path/to/lusa sample.lua
@@ -44,7 +44,7 @@ Or set the runtime path entirely through the environment:
 LUSA_RAW=1 LUNE_BIN=/path/to/lusa python env.py sample.lua
 ```
 
-The harness treats a binary whose filename is not `lune` as a direct Luau-style executable, so `lusa <runner>` is the intended integration path.
+A harness that treats a binary whose filename is not `lune` as a direct Luau-style executable can invoke `lusa <runner>` directly.
 
 ## Validator / deobfuscator integration
 
@@ -74,13 +74,9 @@ python scripts/generate-roblox-registry.py roblox-api.json
 
 ## Host access boundary
 
-Official Lusa release binaries intentionally omit Lune's direct filesystem, network, process, and regex modules. This reduces accidental host access when analyzing untrusted Luau, but **Lusa is not a hardened security sandbox**. Run hostile or unknown code inside a dedicated OS/container sandbox with process, filesystem, network, CPU, and memory restrictions.
+Official Lusa release binaries prioritize tooling compatibility and expose Lune's standard libraries, including direct filesystem, network, process, and regex modules. `lusa --capabilities` reports `"host_io": true` and identifies the exposed host-I/O module families.
 
-If a trusted workflow intentionally needs the omitted Lune host-I/O modules, build from source with:
-
-```bash
-cargo build --release --features host-io
-```
+This is useful for trusted analysis harnesses, but **Lusa is not a hardened security sandbox**. Run hostile or unknown code inside a dedicated OS/container sandbox with process, filesystem, network, CPU, memory, and wall-clock restrictions enforced outside the Lusa process.
 
 ## Compatibility boundary
 

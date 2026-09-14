@@ -10,9 +10,9 @@ Tooling-focused runtime release.
 - Add `--capabilities` JSON for automatic runtime discovery.
 - Add a generated Roblox API registry covering 830 Instance-descendant classes, including 296 services, from the supplied current API dump.
 - Add a registry generator for future Roblox API dump updates.
-- Narrow official release builds to the Lune modules needed for analysis; direct host fs/net/process/regex modules are opt-in with the `host-io` Cargo feature.
+- Explicitly report Lune host-I/O availability in `--capabilities`; official binaries prioritize tooling compatibility and are not a security sandbox.
 - Harden Roblox bootstrap method registration so already-known upstream methods do not abort startup.
-- Expand black-box CI coverage for tooling invocation, stdin/raw mode, registry compatibility, and host-access defaults.
+- Expand black-box CI coverage for tooling invocation, stdin/raw mode, registry compatibility, native Luau behavior, and host-library availability.
 - Add dedicated tooling/deobfuscator integration documentation.
 
 ## v0.1.0

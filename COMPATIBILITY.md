@@ -26,4 +26,6 @@ The generated registry improves recognition/creation of class and service names 
 
 ## Security boundary
 
-The official release configuration omits Lune's direct filesystem, network, process, and regex modules unless Lusa is built with the `host-io` feature. This reduces exposed host APIs but is not a security sandbox. Execute untrusted code inside a separately hardened OS/container sandbox with filesystem, network, process, CPU, and memory controls.
+Official Lusa binaries expose Lune's standard libraries, including filesystem, network, process, and regex modules. This is intentional for tooling compatibility and is reported by `lusa --capabilities` as `"host_io": true`.
+
+Lusa is **not** a security sandbox. Execute untrusted code inside a separately hardened OS/container sandbox with filesystem, network, process, CPU, memory, and wall-clock controls enforced outside the Lusa process.

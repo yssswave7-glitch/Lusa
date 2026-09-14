@@ -84,6 +84,12 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum lusa-linux-x86_64 lusa-windows-x86_64.exe > SHA256SUMS.txt
+
       - name: Resolve release tag
         id: version
         shell: bash

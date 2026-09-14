@@ -14,25 +14,9 @@ publish = false
 name = "lusa"
 path = "src/main.rs"
 
-[features]
-default = []
-host-io = [
-    "lune/std-fs",
-    "lune/std-net",
-    "lune/std-process",
-    "lune/std-regex",
-]
-
 [dependencies]
 async-io = "2.4"
-lune = { version = "=0.10.5", default-features = false, features = [
-    "std-datetime",
-    "std-luau",
-    "std-roblox",
-    "std-serde",
-    "std-stdio",
-    "std-task",
-] }
+lune = { version = "=0.10.5", default-features = false, features = ["std"] }
 
 [profile.release]
 opt-level = "z"

@@ -38,15 +38,11 @@ Lusa also ships a generated API registry based on a current Roblox API dump. The
 
 The user script remains the direct `Runtime::run_file` entrypoint, so parser/compiler diagnostics keep the real script path and line numbers instead of pointing into a generated wrapper.
 
-## Safer analysis defaults
+## Host access and sandboxing
 
-Release binaries include the Lune libraries Lusa needs for Luau/Roblox analysis (`datetime`, `luau`, `roblox`, `serde`, `stdio`, and `task`) but omit direct Lune filesystem, network, process, and regex modules by default. Trusted workflows that need those host-I/O modules can build with:
+Lusa is optimized for compatibility with real Luau tooling, so official release binaries include Lune's standard libraries, including filesystem, network, process, regex, task, and Roblox modules. `lusa --capabilities` reports this explicitly with `"host_io": true`.
 
-```bash
-cargo build --release --features host-io
-```
-
-This narrower default is defense in depth, **not** a hardened security boundary. Unknown or hostile scripts should still run in a dedicated container/OS sandbox with external resource and network controls.
+That makes Lusa useful for trusted deobfuscation and reconstruction harnesses, but it also means **Lusa is not a security sandbox**. Unknown, hostile, or untrusted scripts should run inside a dedicated OS/container sandbox with filesystem, network, process, CPU, memory, and time limits enforced outside Lusa.
 
 ## Compatibility contract
 
@@ -61,7 +57,7 @@ cargo build --release
 python scripts/test-lusa.py target/release/lusa
 ```
 
-The black-box suite covers Roblox bootstrapping, current API registry names, native Luau behavior, executor-boundary behavior, syntax errors, Luau CLI flags, stdin, raw mode, machine capability reporting, and the default host-access boundary. GitHub Actions runs the same suite on Linux x64 and Windows x64 before publishing release binaries.
+The black-box suite covers Roblox bootstrapping, current API registry names, native Luau behavior, executor-boundary behavior, syntax errors, Luau CLI flags, stdin, raw mode, machine capability reporting, and host-library availability. GitHub Actions runs the same suite on Linux x64 and Windows x64 before publishing release binaries.
 
 ## Architecture
 

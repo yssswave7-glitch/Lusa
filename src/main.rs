@@ -90,8 +90,9 @@ fn print_capabilities() {
          \"roblox_bootstrap\":true,\
          \"api_registry\":true,\
          \"luau_cli_flags\":[\"-O0\",\"-O1\",\"-O2\",\"-g0\",\"-g1\",\"-g2\"],\
-         \"host_io\":{}}}",
-        cfg!(feature = "host-io")
+         \"host_io\":true,\
+         \"host_io_modules\":[\"fs\",\"net\",\"process\",\"regex\"],\
+         \"sandbox\":\"external_required\"}}"
     );
 }
 
