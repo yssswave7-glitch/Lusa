@@ -75,7 +75,7 @@ fn env_truthy(name: &str) -> bool {
 fn is_luau_compat_flag(arg: &OsStr) -> bool {
     matches!(
         arg.to_str(),
-        Some("-O0") | Some("-O1") | Some("-O2") | Some("-g0") | Some("-g1") | Some("-g2")
+        Some("-O0" | "-O1" | "-O2" | "-g0" | "-g1" | "-g2")
     )
 }
 
@@ -109,7 +109,7 @@ fn parse_cli() -> Result<Option<Cli>, ExitCode> {
     let mut parse_options = true;
     let mut accepted_run_subcommand = false;
 
-    while let Some(arg) = args.next() {
+    for arg in args {
         if script.is_some() {
             script_args.push(arg);
             continue;
@@ -159,14 +159,14 @@ fn parse_cli() -> Result<Option<Cli>, ExitCode> {
             continue;
         }
 
-        if parse_options && arg != "-" {
-            if let Some(text) = arg.to_str()
-                && text.starts_with('-')
-            {
-                eprintln!("lusa: unknown option: {text}");
-                eprintln!("use -- before a script path that begins with '-'");
-                return Err(ExitCode::from(2));
-            }
+        if parse_options
+            && arg != "-"
+            && let Some(text) = arg.to_str()
+            && text.starts_with('-')
+        {
+            eprintln!("lusa: unknown option: {text}");
+            eprintln!("use -- before a script path that begins with '-'");
+            return Err(ExitCode::from(2));
         }
 
         script = Some(arg);
