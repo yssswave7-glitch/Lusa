@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.1
+
+Bounded Potassium compatibility.
+
+- Enable the Potassium compatibility profile by default; add `--executor-profile=none` / `LUSA_EXECUTOR_PROFILE=none` as an explicit opt-out.
+- Return `potassium` and `v2.4.8` from native `identifyexecutor` and `getexecutorname` callbacks.
+- Add stable `getgenv` / `getrenv`, closure classifiers, `checkcaller`, `isourthread`, and an offline `newcclosure` wrapper.
+- Keep live hook state, injection, network/filesystem/input APIs, RakNet, hidden properties, and stack concealment outside the emulated profile.
+
 ## v0.3.0
 
 Protection and performance update.

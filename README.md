@@ -15,6 +15,7 @@ lusa script.luau
 lusa -O2 script.luau
 lusa --raw harness.luau
 lusa --raw --isolated untrusted-harness.luau
+lusa --executor-profile=none roblox-only-test.luau
 cat generated.luau | lusa --raw -
 lusa --capabilities
 ```
@@ -51,7 +52,9 @@ For analysis workloads, `--isolated` is an optional defense-in-depth profile. It
 
 Lusa aims for **Luau and offline Roblox engine-surface compatibility**, not a bit-for-bit simulation of a live Roblox client/server. A standalone process cannot reproduce replication, physics, security contexts, engine scheduling, live service state, or an authoritative Roblox server clock.
 
-Executor-only globals such as `identifyexecutor`, `isfunctionhooked`, `islclosure`, and `getgenv` are intentionally not fabricated by Lusa. Those are not Roblox APIs, and spoofing them would make analysis results less trustworthy. See [COMPATIBILITY.md](COMPATIBILITY.md) for the detailed boundary.
+The bounded Potassium compatibility profile is enabled by default. It provides the exact `identifyexecutor()` / `getexecutorname()` pair `"potassium", "v2.4.8"`, stable `getgenv()` / `getrenv()` access, closure classification helpers, `checkcaller()`, `isourthread()`, and an offline `newcclosure()` wrapper. The profile exposes `_LUSA_EXECUTOR_PROFILE = "potassium-emulated"` so tooling can distinguish emulation from a real executor. Use `--executor-profile=none` or `LUSA_EXECUTOR_PROFILE=none` to disable it.
+
+This profile does not provide live injection, function hooks, network interception, executor filesystem/input APIs, RakNet access, hidden properties, or stack concealment. See [COMPATIBILITY.md](COMPATIBILITY.md) for the detailed boundary.
 
 ## Tests and releases
 

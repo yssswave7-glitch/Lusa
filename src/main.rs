@@ -11,7 +11,7 @@ use std::{
 };
 
 use lune::Runtime;
-use mlua::{Function as LuaFunction, Value as LuaValue};
+use mlua::{Function as LuaFunction, MultiValue as LuaMultiValue, Value as LuaValue};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const ROBLOX_API_REGISTRY_CHUNKS: &[&str] = &[
@@ -30,6 +30,8 @@ const ROBLOX_API_REGISTRY_CHUNKS: &[&str] = &[
 ];
 const ROBLOX_BOOTSTRAP: &str = include_str!("roblox_bootstrap.luau");
 const ROBLOX_METATABLE_LOCK: &str = "The metatable is locked";
+const POTASSIUM_EXECUTOR_NAME: &str = "potassium";
+const POTASSIUM_EXECUTOR_VERSION: &str = "v2.4.8";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RuntimeMode {
@@ -41,6 +43,7 @@ struct Cli {
     mode: RuntimeMode,
     isolated: bool,
     jit: bool,
+    potassium_identity: bool,
     script: OsString,
     script_args: Vec<OsString>,
 }
@@ -54,6 +57,7 @@ fn usage() {
            lusa run <script.luau> [args...]\n\
            lusa --raw <script.luau> [args...]\n\
            lusa --raw --isolated <script.luau> [args...]\n\
+           lusa --executor-profile=potassium <script.luau> [args...]\n\
            lusa -O2 <script.luau> [args...]\n\
            lusa --capabilities\n\
            lusa --version\n\n\
@@ -63,9 +67,11 @@ fn usage() {
            - LUSA_RAW=1 skips the Roblox bootstrap without changing the command line\n\n\
            - Luau JIT is enabled by default; --no-jit or LUSA_LUAU_JIT=0 disables it\n\
            - --isolated denies filesystem/network/process requires and hides environment values\n\n\
+           - Potassium identity compatibility is enabled by default\n\
+           - --executor-profile=none disables executor compatibility\n\n\
          Lusa targets Roblox/Luau language and offline engine-surface compatibility.\n\
-         It does not fabricate exploit-executor identity, hook state, native provenance,\n\
-         or hidden stack frames."
+         Executor compatibility is offline-only and does not provide live hooks,\n\
+         injection, network interception, or hidden stack frames."
     );
 }
 
@@ -87,6 +93,15 @@ fn env_enabled(name: &str) -> Option<bool> {
     ))
 }
 
+fn potassium_profile_from_env() -> bool {
+    env::var("LUSA_EXECUTOR_PROFILE").map_or(true, |profile| {
+        !matches!(
+            profile.trim().to_ascii_lowercase().as_str(),
+            "none" | "off" | "0" | "false"
+        )
+    })
+}
+
 fn is_luau_compat_flag(arg: &OsStr) -> bool {
     matches!(
         arg.to_str(),
@@ -103,6 +118,9 @@ fn print_capabilities() {
          \"stdin\":true,\
          \"raw_mode\":true,\
          \"isolated_mode\":true,\
+         \"executor_identity_emulation\":true,\
+         \"executor_identity_default\":\"potassium\",\
+         \"executor_identity_profiles\":[\"potassium\"],\
          \"jit_default\":true,\
          \"roblox_bootstrap\":true,\
          \"api_registry\":true,\
@@ -127,6 +145,7 @@ fn parse_cli() -> Result<Option<Cli>, ExitCode> {
     let mut jit = env_enabled("LUSA_LUAU_JIT")
         .or_else(|| env_enabled("LUNE_LUAU_JIT"))
         .unwrap_or(true);
+    let mut potassium_identity = potassium_profile_from_env();
     let mut script: Option<OsString> = None;
     let mut script_args = Vec::new();
     let mut parse_options = true;
@@ -193,6 +212,16 @@ fn parse_cli() -> Result<Option<Cli>, ExitCode> {
             continue;
         }
 
+        if parse_options && (arg == "--potassium" || arg == "--executor-profile=potassium") {
+            potassium_identity = true;
+            continue;
+        }
+
+        if parse_options && arg == "--executor-profile=none" {
+            potassium_identity = false;
+            continue;
+        }
+
         // Several Luau-based tools invoke their runtime as:
         //     luau -O2 file.luau
         // or pass a debug-info level. Lusa uses Lune's bundled Luau compiler,
@@ -224,6 +253,7 @@ fn parse_cli() -> Result<Option<Cli>, ExitCode> {
         mode,
         isolated,
         jit,
+        potassium_identity,
         script,
         script_args,
     }))
@@ -310,6 +340,16 @@ async fn run(cli: Cli) -> ExitCode {
         };
     }
 
+    if cli.potassium_identity {
+        runtime = match install_potassium_identity(runtime) {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                eprintln!("{error}");
+                return ExitCode::FAILURE;
+            }
+        };
+    }
+
     if cli.script == "-" {
         let mut source = Vec::new();
         if let Err(error) = io::stdin().read_to_end(&mut source) {
@@ -333,6 +373,46 @@ async fn run(cli: Cli) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn install_potassium_identity(runtime: Runtime) -> lune::RuntimeResult<Runtime> {
+    runtime.with_lib("@lusa/potassium-identity", |lua| {
+        let globals = lua.globals();
+        let identify_executor =
+            lua.create_function(|_, ()| Ok((POTASSIUM_EXECUTOR_NAME, POTASSIUM_EXECUTOR_VERSION)))?;
+        let executor_env = globals.clone();
+        let getgenv = lua.create_function(move |_, ()| Ok(executor_env.clone()))?;
+        let roblox_env = lua.create_table()?;
+        let roblox_env_meta = lua.create_table()?;
+        roblox_env_meta.set("__index", globals.clone())?;
+        roblox_env.set_metatable(Some(roblox_env_meta))?;
+        let getrenv = lua.create_function(move |_, ()| Ok(roblox_env.clone()))?;
+        let is_c_closure =
+            lua.create_function(|_, function: LuaFunction| Ok(function.info().what == "C"))?;
+        let is_lua_closure =
+            lua.create_function(|_, function: LuaFunction| Ok(function.info().what != "C"))?;
+        let is_executor_closure =
+            lua.create_function(|_, function: LuaFunction| Ok(function.info().what != "C"))?;
+        let newcclosure = lua.create_function(|lua, function: LuaFunction| {
+            lua.create_function(move |_, args: LuaMultiValue| function.call::<LuaMultiValue>(args))
+        })?;
+
+        globals.set("identifyexecutor", identify_executor.clone())?;
+        globals.set("getexecutorname", identify_executor)?;
+        globals.set("getgenv", getgenv)?;
+        globals.set("getrenv", getrenv)?;
+        globals.set("iscclosure", is_c_closure)?;
+        globals.set("islclosure", is_lua_closure.clone())?;
+        globals.set("isluaclosure", is_lua_closure)?;
+        globals.set("isexecutorclosure", is_executor_closure.clone())?;
+        globals.set("isourclosure", is_executor_closure)?;
+        globals.set("checkcaller", lua.create_function(|_, ()| Ok(true))?)?;
+        globals.set("isourthread", lua.create_function(|_, ()| Ok(true))?)?;
+        globals.set("newcclosure", newcclosure)?;
+        globals.set("_LUSA_EXECUTOR_PROFILE", "potassium-emulated")?;
+
+        Ok(LuaValue::Table(lua.create_table()?))
+    })
 }
 
 fn install_isolation_guards(runtime: Runtime) -> lune::RuntimeResult<Runtime> {

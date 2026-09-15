@@ -12,7 +12,7 @@ Lusa is an offline Luau/Roblox compatibility runtime. Its goal is to make Roblox
 
 **Live-engine behavior:** replication, physics, rendering, security contexts, network ownership, live service state, authoritative server time, and other behaviors that require the Roblox engine are not simulated as if they were real.
 
-**Executor-only behavior:** exploit-executor identity, hook state, fake C/native-closure provenance, stack-frame concealment, and similar non-Roblox surfaces are intentionally not fabricated.
+**Executor-only behavior:** a bounded Potassium compatibility profile is enabled by default. It implements offline identity, shared environment access, closure classification, caller classification, and native-wrapper behavior with a visible emulation marker. Live hooks, injection, executor I/O, network interception, RakNet access, hidden properties, and stack-frame concealment are intentionally not fabricated.
 
 ## Tooling mode
 
@@ -21,6 +21,14 @@ Lusa is an offline Luau/Roblox compatibility runtime. Its goal is to make Roblox
 `--isolated` (or `LUSA_ISOLATED=1`) additionally denies filesystem/network/process APIs and file module loads, and removes inherited environment values. It retains task, datetime, serde, regex, and offline Roblox libraries for analysis harnesses. Luau JIT is enabled by default; `--no-jit` or `LUSA_LUAU_JIT=0` disables it.
 
 Lusa also accepts common Luau CLI optimization/debug flags for subprocess compatibility and supports stdin for generated scripts. See [docs/TOOLING.md](docs/TOOLING.md).
+
+## Executor identity profile
+
+The offline Potassium profile is enabled by default. Both `identifyexecutor()` and `getexecutorname()` return `"potassium", "v2.4.8"`. It also installs stable `getgenv()` / `getrenv()`, `iscclosure()`, `islclosure()` / `isluaclosure()`, `isexecutorclosure()` / `isourclosure()`, `checkcaller()`, `isourthread()`, and `newcclosure()`. The global marker `_LUSA_EXECUTOR_PROFILE` is set to `"potassium-emulated"`.
+
+Use `--executor-profile=none` or `LUSA_EXECUTOR_PROFILE=none` when executor compatibility must be disabled. `--executor-profile=potassium` and `--potassium` explicitly enable it.
+
+This is bounded offline behavior, not a claim that Lusa implements exploit injection, live function hooks, real client caller trust, executor filesystems, network/input APIs, RakNet, or hidden native state.
 
 ## API registry limits
 

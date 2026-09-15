@@ -166,6 +166,43 @@ roblox_isolated_output = run_args(
 if "LUSA_ROBLOX_ISOLATED_PASS" not in roblox_isolated_output:
     raise SystemExit("Roblox --isolated check failed")
 
+potassium_output = run_args(
+    ["--raw", "-"],
+    True,
+    input_text=(
+        "local name, version = identifyexecutor()\n"
+        'assert(name == "potassium", "unexpected executor name")\n'
+        'assert(version == "v2.4.8", "unexpected executor version")\n'
+        "local aliasName, aliasVersion = getexecutorname()\n"
+        'assert(aliasName == name and aliasVersion == version, "identity alias mismatch")\n'
+        'assert(_LUSA_EXECUTOR_PROFILE == "potassium-emulated", "missing emulation marker")\n'
+        'assert(debug.info(identifyexecutor, "s") == "[C]", "identity callback is not native")\n'
+        'assert(getgenv() == getgenv(), "executor environment is unstable")\n'
+        'assert(getrenv() == getrenv() and getrenv() ~= getgenv(), "environment separation failed")\n'
+        'assert(getrenv().print == print, "runtime global lookup failed")\n'
+        'assert(iscclosure(identifyexecutor), "identity callback is not a C closure")\n'
+        'assert(islclosure(function() end), "Lua closure classification failed")\n'
+        'assert(isexecutorclosure(function() end) and not isexecutorclosure(print), "executor closure classification failed")\n'
+        'assert(checkcaller(), "caller classification failed")\n'
+        'assert(isfunctionhooked == nil, "profile spoofed live hook state")\n'
+        'print("LUSA_POTASSIUM_IDENTITY_PASS")\n'
+    ),
+)
+if "LUSA_POTASSIUM_IDENTITY_PASS" not in potassium_output:
+    raise SystemExit("default Potassium identity profile check failed")
+
+executor_disabled_output = run_args(
+    ["--raw", "--executor-profile=none", "-"],
+    True,
+    input_text=(
+        'assert(identifyexecutor == nil, "executor identity was not disabled")\n'
+        'assert(getgenv == nil and checkcaller == nil, "executor profile leaked APIs")\n'
+        'print("LUSA_EXECUTOR_DISABLED_PASS")\n'
+    ),
+)
+if "LUSA_EXECUTOR_DISABLED_PASS" not in executor_disabled_output:
+    raise SystemExit("--executor-profile=none check failed")
+
 for jit_flag in ("--jit", "--no-jit"):
     jit_output = run_args(
         ["--raw", jit_flag, "-"],
@@ -204,6 +241,8 @@ required = {
     "stdin": True,
     "raw_mode": True,
     "isolated_mode": True,
+    "executor_identity_emulation": True,
+    "executor_identity_default": "potassium",
     "jit_default": True,
     "roblox_bootstrap": True,
     "api_registry": True,
@@ -220,5 +259,8 @@ if not {"fs", "net", "process", "regex"}.issubset(host_modules):
 
 if "-O2" not in capabilities.get("luau_cli_flags", []):
     raise SystemExit("--capabilities is missing -O2 compatibility")
+
+if "potassium" not in capabilities.get("executor_identity_profiles", []):
+    raise SystemExit("--capabilities is missing the Potassium identity profile")
 
 print("ALL_LUSA_TESTS_PASS")
