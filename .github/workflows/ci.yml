@@ -55,7 +55,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          docker run --rm --volume "$PWD:/work" --workdir /work rust:1.90.0-bullseye bash -lc 'apt-get update &&
+          docker run --rm --volume "$PWD:/work" --workdir /work rust:1.90.0-bullseye bash -c 'apt-get update &&
               apt-get install --yes --no-install-recommends cmake &&
               cargo build --locked --release --target x86_64-unknown-linux-gnu'
 
