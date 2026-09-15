@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.0
+
+Protection and performance update.
+
+- Enable Luau JIT by default, matching Lune's CLI, with explicit CLI/environment controls to disable it.
+- Optimize the native release binary for execution speed instead of minimum binary size.
+- Add an opt-in isolated analysis profile that strips inherited environment values and denies filesystem/network/process APIs and file module loads while preserving pure/runtime libraries.
+- Compile the generated Roblox API registry, bootstrap, and version setup as one cold runtime chunk to reduce scheduler and standard-library injection overhead.
+- Add isolated-mode and JIT-control regression coverage.
+- Integrate the updated Luraph ENV LOG harness with `--raw --isolated` execution and Lusa-first discovery.
+- Build Linux x64 in a Debian 11 container so its glibc baseline remains compatible with Debian 11 and newer.
+
 ## v0.2.1
 
 Roblox Instance fidelity patch.

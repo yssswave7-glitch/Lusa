@@ -18,6 +18,8 @@ Lusa is an offline Luau/Roblox compatibility runtime. Its goal is to make Roblox
 
 `--raw` (or `LUSA_RAW=1`) skips Lusa's Roblox registry/bootstrap while retaining the Luau/Lune runtime. This is the recommended mode for a deobfuscator or trace harness that already constructs a target environment, because it avoids contaminating bootstrap observations with a second `game`/`workspace` model.
 
+`--isolated` (or `LUSA_ISOLATED=1`) additionally denies filesystem/network/process APIs and file module loads, and removes inherited environment values. It retains task, datetime, serde, regex, and offline Roblox libraries for analysis harnesses. Luau JIT is enabled by default; `--no-jit` or `LUSA_LUAU_JIT=0` disables it.
+
 Lusa also accepts common Luau CLI optimization/debug flags for subprocess compatibility and supports stdin for generated scripts. See [docs/TOOLING.md](docs/TOOLING.md).
 
 ## API registry limits
@@ -28,4 +30,4 @@ The generated registry improves recognition/creation of class and service names 
 
 Official Lusa binaries expose Lune's standard libraries, including filesystem, network, process, and regex modules. This is intentional for tooling compatibility and is reported by `lusa --capabilities` as `"host_io": true`.
 
-Lusa is **not** a security sandbox. Execute untrusted code inside a separately hardened OS/container sandbox with filesystem, network, process, CPU, memory, and wall-clock controls enforced outside the Lusa process.
+Isolated mode is defense in depth, not a complete sandbox. Lusa is **not** an OS security boundary. Execute untrusted code inside a separately hardened OS/container sandbox with filesystem, network, process, CPU, memory, and wall-clock controls enforced outside the Lusa process.

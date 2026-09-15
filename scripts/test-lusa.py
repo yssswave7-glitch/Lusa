@@ -131,6 +131,50 @@ host_output = run_args(
 if "LUSA_HOST_IO_PASS" not in host_output:
     raise SystemExit("host library availability check failed")
 
+# Isolated mode is a defense-in-depth profile for untrusted analysis. It keeps
+# pure/runtime libraries needed by harnesses but denies filesystem, network,
+# process, and file-module access.
+isolated_output = run_args(
+    ["--raw", "--isolated", "-"],
+    True,
+    input_text=(
+        'local taskOk = pcall(require, "@lune/task")\n'
+        'local fileOk = pcall(require, "./local-module")\n'
+        'assert(taskOk, "isolated mode should retain @lune/task")\n'
+        'assert(not fileOk, "isolated mode unexpectedly allowed file require")\n'
+        'for _, name in {"fs", "net", "process", "stdio"} do\n'
+        '    local ok = pcall(require, "@lune/" .. name)\n'
+        '    assert(not ok, "isolated mode exposed @lune/" .. name)\n'
+        'end\n'
+        'print("LUSA_ISOLATED_PASS")\n'
+    ),
+)
+if "LUSA_ISOLATED_PASS" not in isolated_output:
+    raise SystemExit("--isolated check failed")
+
+# Roblox setup runs before the guard is installed, while user code still sees
+# the restricted require function.
+roblox_isolated_output = run_args(
+    ["--isolated", "-"],
+    True,
+    input_text=(
+        'assert(game ~= nil and workspace ~= nil, "Roblox bootstrap missing")\n'
+        'assert(not pcall(require, "@lune/net"), "isolated Roblox exposed net")\n'
+        'print("LUSA_ROBLOX_ISOLATED_PASS")\n'
+    ),
+)
+if "LUSA_ROBLOX_ISOLATED_PASS" not in roblox_isolated_output:
+    raise SystemExit("Roblox --isolated check failed")
+
+for jit_flag in ("--jit", "--no-jit"):
+    jit_output = run_args(
+        ["--raw", jit_flag, "-"],
+        True,
+        input_text='print("LUSA_JIT_CONTROL_PASS")\n',
+    )
+    if "LUSA_JIT_CONTROL_PASS" not in jit_output:
+        raise SystemExit(f"{jit_flag} check failed")
+
 version = subprocess.run(
     [str(BIN), "--version"],
     text=True,
@@ -159,6 +203,8 @@ required = {
     "direct_file": True,
     "stdin": True,
     "raw_mode": True,
+    "isolated_mode": True,
+    "jit_default": True,
     "roblox_bootstrap": True,
     "api_registry": True,
     "host_io": True,

@@ -14,6 +14,7 @@ It keeps the convenient `lusa script.luau` workflow, uses Lune's real Luau VM, a
 lusa script.luau
 lusa -O2 script.luau
 lusa --raw harness.luau
+lusa --raw --isolated untrusted-harness.luau
 cat generated.luau | lusa --raw -
 lusa --capabilities
 ```
@@ -26,7 +27,7 @@ lusa run script.luau arg1 arg2
 
 ## Built for Luau tooling
 
-Lusa v0.2 accepts common Luau CLI optimization/debug flags (`-O0/-O1/-O2`, `-g0/-g1/-g2`), supports stdin, preserves direct file execution and real Luau diagnostics, and exposes a machine-readable capability report. `LUSA_RAW=1` lets a parent tool disable Lusa's Roblox bootstrap without changing the child command it constructs.
+Lusa v0.3 accepts common Luau CLI optimization/debug flags (`-O0/-O1/-O2`, `-g0/-g1/-g2`), supports stdin, preserves direct file execution and real Luau diagnostics, and exposes a machine-readable capability report. `LUSA_RAW=1` lets a parent tool disable Lusa's Roblox bootstrap without changing the child command it constructs. Luau JIT is enabled by default to match Lune's CLI; use `--no-jit` or `LUSA_LUAU_JIT=0` for diagnostics that require the interpreter.
 
 That makes Lusa easy to substitute into software that currently shells out to `luau` or `lune`. See [docs/TOOLING.md](docs/TOOLING.md) for concrete integration examples.
 
@@ -40,9 +41,11 @@ The user script remains the direct `Runtime::run_file` entrypoint, so parser/com
 
 ## Host access and sandboxing
 
-Lusa is optimized for compatibility with real Luau tooling, so official release binaries include Lune's standard libraries, including filesystem, network, process, regex, task, and Roblox modules. `lusa --capabilities` reports this explicitly with `"host_io": true`.
+Lusa is optimized for compatibility with real Luau tooling, so normal execution includes Lune's standard libraries, including filesystem, network, process, regex, task, and Roblox modules. `lusa --capabilities` reports this explicitly with `"host_io": true`.
 
-That makes Lusa useful for trusted deobfuscation and reconstruction harnesses, but it also means **Lusa is not a security sandbox**. Unknown, hostile, or untrusted scripts should run inside a dedicated OS/container sandbox with filesystem, network, process, CPU, memory, and time limits enforced outside Lusa.
+For analysis workloads, `--isolated` is an optional defense-in-depth profile. It removes inherited process environment values and denies filesystem module loading plus `@lune/fs`, `@lune/net`, `@lune/process`, and `@lune/stdio`; pure/runtime libraries such as task, datetime, serde, regex, and offline Roblox datatypes remain available. `LUSA_ISOLATED=1` enables the same profile without changing a parent tool's command construction.
+
+**Lusa is still not an OS security sandbox.** Unknown, hostile, or untrusted scripts should run inside a dedicated OS/container sandbox with filesystem, network, process, CPU, memory, and time limits enforced outside Lusa.
 
 ## Compatibility contract
 
@@ -57,7 +60,7 @@ cargo build --release
 python scripts/test-lusa.py target/release/lusa
 ```
 
-The black-box suite covers Roblox bootstrapping, current API registry names, native Luau behavior, executor-boundary behavior, syntax errors, Luau CLI flags, stdin, raw mode, machine capability reporting, and host-library availability. GitHub Actions runs the same suite on Linux x64 and Windows x64 before publishing release binaries.
+The black-box suite covers Roblox bootstrapping, current API registry names, native Luau behavior, executor-boundary behavior, syntax errors, Luau CLI flags, JIT controls, stdin, raw/isolated modes, machine capability reporting, and host-library availability. GitHub Actions builds Linux x64 against a Debian 11 glibc baseline, then runs the same suite against that artifact and the Windows x64 artifact before publishing either binary.
 
 ## Architecture
 

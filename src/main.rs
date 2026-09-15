@@ -39,6 +39,8 @@ enum RuntimeMode {
 
 struct Cli {
     mode: RuntimeMode,
+    isolated: bool,
+    jit: bool,
     script: OsString,
     script_args: Vec<OsString>,
 }
@@ -51,6 +53,7 @@ fn usage() {
            lusa <script.luau> [args...]\n\
            lusa run <script.luau> [args...]\n\
            lusa --raw <script.luau> [args...]\n\
+           lusa --raw --isolated <script.luau> [args...]\n\
            lusa -O2 <script.luau> [args...]\n\
            lusa --capabilities\n\
            lusa --version\n\n\
@@ -58,6 +61,8 @@ fn usage() {
            - accepts Luau CLI optimization/debug flags: -O0/-O1/-O2, -g0/-g1/-g2\n\
            - accepts '-' as stdin\n\
            - LUSA_RAW=1 skips the Roblox bootstrap without changing the command line\n\n\
+           - Luau JIT is enabled by default; --no-jit or LUSA_LUAU_JIT=0 disables it\n\
+           - --isolated denies filesystem/network/process requires and hides environment values\n\n\
          Lusa targets Roblox/Luau language and offline engine-surface compatibility.\n\
          It does not fabricate exploit-executor identity, hook state, native provenance,\n\
          or hidden stack frames."
@@ -72,6 +77,14 @@ fn env_truthy(name: &str) -> bool {
         value.trim().to_ascii_lowercase().as_str(),
         "" | "0" | "false" | "no" | "off"
     )
+}
+
+fn env_enabled(name: &str) -> Option<bool> {
+    let value = env::var(name).ok()?;
+    Some(!matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "" | "0" | "false" | "no" | "off"
+    ))
 }
 
 fn is_luau_compat_flag(arg: &OsStr) -> bool {
@@ -89,11 +102,14 @@ fn print_capabilities() {
          \"run_subcommand\":true,\
          \"stdin\":true,\
          \"raw_mode\":true,\
+         \"isolated_mode\":true,\
+         \"jit_default\":true,\
          \"roblox_bootstrap\":true,\
          \"api_registry\":true,\
          \"luau_cli_flags\":[\"-O0\",\"-O1\",\"-O2\",\"-g0\",\"-g1\",\"-g2\"],\
          \"host_io\":true,\
          \"host_io_modules\":[\"fs\",\"net\",\"process\",\"regex\"],\
+         \"isolated_security\":\"defense_in_depth_only\",\
          \"sandbox\":\"external_required\"}}"
     );
 }
@@ -107,6 +123,10 @@ fn parse_cli() -> Result<Option<Cli>, ExitCode> {
     } else {
         RuntimeMode::Roblox
     };
+    let mut isolated = env_truthy("LUSA_ISOLATED");
+    let mut jit = env_enabled("LUSA_LUAU_JIT")
+        .or_else(|| env_enabled("LUNE_LUAU_JIT"))
+        .unwrap_or(true);
     let mut script: Option<OsString> = None;
     let mut script_args = Vec::new();
     let mut parse_options = true;
@@ -153,6 +173,26 @@ fn parse_cli() -> Result<Option<Cli>, ExitCode> {
             continue;
         }
 
+        if parse_options && arg == "--isolated" {
+            isolated = true;
+            continue;
+        }
+
+        if parse_options && arg == "--no-isolated" {
+            isolated = false;
+            continue;
+        }
+
+        if parse_options && arg == "--jit" {
+            jit = true;
+            continue;
+        }
+
+        if parse_options && arg == "--no-jit" {
+            jit = false;
+            continue;
+        }
+
         // Several Luau-based tools invoke their runtime as:
         //     luau -O2 file.luau
         // or pass a debug-info level. Lusa uses Lune's bundled Luau compiler,
@@ -182,6 +222,8 @@ fn parse_cli() -> Result<Option<Cli>, ExitCode> {
 
     Ok(Some(Cli {
         mode,
+        isolated,
+        jit,
         script,
         script_args,
     }))
@@ -199,7 +241,18 @@ fn main() -> ExitCode {
 
 async fn run(cli: Cli) -> ExitCode {
     let mut runtime = match Runtime::new() {
-        Ok(runtime) => runtime.with_args(cli.script_args),
+        Ok(runtime) => {
+            // Bootstrap code is cold initialization work and does not benefit
+            // from native compilation. Enable the requested JIT state after
+            // Roblox setup so short scripts avoid paying that startup cost.
+            let initial_jit = cli.mode == RuntimeMode::Raw && cli.jit;
+            let runtime = runtime.with_args(cli.script_args).with_jit(initial_jit);
+            if cli.isolated {
+                runtime.with_env(Vec::<(OsString, OsString)>::new())
+            } else {
+                runtime
+            }
+        }
         Err(error) => {
             eprintln!("{error}");
             return ExitCode::FAILURE;
@@ -215,20 +268,25 @@ async fn run(cli: Cli) -> ExitCode {
             }
         };
 
-        for (index, chunk) in ROBLOX_API_REGISTRY_CHUNKS.iter().enumerate() {
-            let chunk_name = format!("lusa/roblox_api_registry_{index:02}");
-            match runtime.run_custom(chunk_name, chunk).await {
-                Ok(result) if result.success() => {}
-                Ok(result) => return ExitCode::from(result.status()),
-                Err(error) => {
-                    eprintln!("{error}");
-                    return ExitCode::FAILURE;
-                }
-            }
+        // The registry stays split in source control for maintainability. At
+        // runtime, registry, bootstrap, and version setup are one cold chunk so
+        // standard-library injection and scheduler startup happen only once.
+        let registry_len = ROBLOX_API_REGISTRY_CHUNKS
+            .iter()
+            .map(|chunk| chunk.len())
+            .sum::<usize>();
+        let mut bootstrap_source =
+            String::with_capacity(registry_len + ROBLOX_BOOTSTRAP.len() + VERSION.len() + 40);
+        for chunk in ROBLOX_API_REGISTRY_CHUNKS {
+            bootstrap_source.push_str(chunk);
         }
+        bootstrap_source.push_str(ROBLOX_BOOTSTRAP);
+        bootstrap_source.push_str("\ngetfenv(0)._VERSION = \"Lusa ");
+        bootstrap_source.push_str(VERSION);
+        bootstrap_source.push_str("\"\n");
 
         match runtime
-            .run_custom("lusa/roblox_bootstrap", ROBLOX_BOOTSTRAP)
+            .run_custom("lusa/roblox_bootstrap", bootstrap_source)
             .await
         {
             Ok(result) if result.success() => {}
@@ -239,15 +297,17 @@ async fn run(cli: Cli) -> ExitCode {
             }
         }
 
-        let version_source = format!("getfenv(0)._VERSION = \"Lusa {VERSION}\"");
-        match runtime.run_custom("lusa/version", version_source).await {
-            Ok(result) if result.success() => {}
-            Ok(result) => return ExitCode::from(result.status()),
+        runtime = runtime.with_jit(cli.jit);
+    }
+
+    if cli.isolated {
+        runtime = match install_isolation_guards(runtime) {
+            Ok(runtime) => runtime,
             Err(error) => {
                 eprintln!("{error}");
                 return ExitCode::FAILURE;
             }
-        }
+        };
     }
 
     if cli.script == "-" {
@@ -273,6 +333,31 @@ async fn run(cli: Cli) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn install_isolation_guards(runtime: Runtime) -> lune::RuntimeResult<Runtime> {
+    runtime.with_lib("@lusa/isolation", |lua| {
+        let globals = lua.globals();
+        let original_require = globals.get::<LuaFunction>("require")?;
+
+        let guarded_require = lua.create_function(move |_, module: String| {
+            let allowed = matches!(
+                module.as_str(),
+                "@lune/datetime" | "@lune/regex" | "@lune/roblox" | "@lune/serde" | "@lune/task"
+            );
+
+            if !allowed {
+                return Err(mlua::Error::RuntimeError(format!(
+                    "Lusa isolated mode denied require({module:?})"
+                )));
+            }
+
+            original_require.call::<LuaValue>(module)
+        })?;
+
+        globals.set("require", guarded_require)?;
+        Ok(LuaValue::Table(lua.create_table()?))
+    })
 }
 
 fn install_roblox_fidelity_shims(runtime: Runtime) -> lune::RuntimeResult<Runtime> {

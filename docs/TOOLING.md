@@ -14,7 +14,7 @@ cat generated.luau | lusa --raw -
 
 `lusa --capabilities` prints a small JSON object intended for automatic runtime detection.
 
-## Raw mode for harnesses
+## Raw and isolated modes for harnesses
 
 Trace/deobfuscation harnesses often construct their own `game`, `Instance`, mock services, proxy objects, and callback scheduler. Preloading a second Roblox environment would change the bootstrap they are trying to observe, so use raw mode for those harnesses:
 
@@ -30,21 +30,29 @@ LUSA_RAW=1 lusa harness.luau
 
 Raw mode keeps the Luau/Lune runtime and its standard libraries, including `@lune/task`, but skips Lusa's `game` / `workspace` / Roblox API registry bootstrap.
 
-## `env.py`-style trace harnesses
-
-For a trace-driven Python harness that accepts `--lune` / `--luau`, point it at the Lusa binary and set raw mode in the child environment:
+For unknown inputs, combine it with the defense-in-depth isolated profile:
 
 ```bash
-LUSA_RAW=1 python env.py --lune /path/to/lusa sample.lua
+lusa --raw --isolated harness.luau
+```
+
+This removes inherited process environment values and denies filesystem/network/process APIs and file module loads while retaining task, datetime, serde, regex, and offline Roblox libraries. It complements rather than replaces OS/container limits.
+
+## `env.py`-style trace harnesses
+
+The updated ENV LOG harness recognizes `--lusa` and invokes this profile directly:
+
+```bash
+python env.py --lusa /path/to/lusa sample.lua
 ```
 
 Or set the runtime path entirely through the environment:
 
 ```bash
-LUSA_RAW=1 LUNE_BIN=/path/to/lusa python env.py sample.lua
+LUSA_BIN=/path/to/lusa python env.py sample.lua
 ```
 
-A harness that treats a binary whose filename is not `lune` as a direct Luau-style executable can invoke `lusa <runner>` directly.
+Other harnesses can invoke `lusa --raw --isolated <runner>` directly or set `LUSA_RAW=1` and `LUSA_ISOLATED=1`.
 
 ## Validator / deobfuscator integration
 
@@ -76,7 +84,7 @@ python scripts/generate-roblox-registry.py roblox-api.json
 
 Official Lusa release binaries prioritize tooling compatibility and expose Lune's standard libraries, including direct filesystem, network, process, and regex modules. `lusa --capabilities` reports `"host_io": true` and identifies the exposed host-I/O module families.
 
-This is useful for trusted analysis harnesses, but **Lusa is not a hardened security sandbox**. Run hostile or unknown code inside a dedicated OS/container sandbox with process, filesystem, network, CPU, memory, and wall-clock restrictions enforced outside the Lusa process.
+Normal mode is useful for trusted analysis harnesses. Isolated mode reduces the exposed in-process surface, but **Lusa is not a hardened OS security sandbox**. Run hostile or unknown code inside a dedicated OS/container sandbox with process, filesystem, network, CPU, memory, and wall-clock restrictions enforced outside the Lusa process.
 
 ## Compatibility boundary
 
